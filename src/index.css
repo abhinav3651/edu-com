@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,19 +36,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -98,4 +92,61 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Custom styles for C Compiler Visualizer */
+
+/* AST Styles */
+.node-label {
+  @apply font-bold text-green-700;
+}
+
+.node-key {
+  @apply italic text-blue-600;
+}
+
+.ast-leaf {
+  @apply text-gray-800;
+}
+
+/* Semantic Analysis Styles */
+.semantic-section {
+  @apply mb-6;
+}
+
+.semantic-section h3 {
+  @apply text-lg font-bold mb-2 text-purple-600;
+}
+
+.error-list {
+  @apply list-disc pl-5;
+}
+
+.error-item {
+  @apply text-red-600 my-1;
+}
+
+.success-message {
+  @apply text-green-600 font-medium;
+}
+
+/* Table Styles */
+table {
+  @apply w-full border-collapse mb-4;
+}
+
+thead tr {
+  @apply bg-gray-100;
+}
+
+th {
+  @apply border px-4 py-2 text-left font-bold;
+}
+
+td {
+  @apply border px-4 py-2;
+}
+
+tbody tr:hover {
+  @apply bg-gray-50;
 }
