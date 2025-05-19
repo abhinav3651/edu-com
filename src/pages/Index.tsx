@@ -1,10 +1,12 @@
-
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { SemanticAnalyzer, renderSemanticAnalysis } from "@/utils/semanticAnalyzer";
+import { IntermediateCodeGenerator, formatTAC } from "@/utils/intermediateCodeGenerator";
+import { CodeOptimizer, formatOptimizedCode } from "@/utils/codeOptimizer";
+import { CodeGenerator, formatAssembly } from "@/utils/codeGenerator";
 
 // Define token types
 const TokenType = {
@@ -542,15 +544,13 @@ function renderAST(node: any): string {
 // Index component
 const Index = () => {
   const { toast } = useToast();
-  const [codeInput, setCodeInput] = useState(`int main()
-{
-  int a = 100;
-  printf("Hello World: %d\\n", a);
-  return 0;
-}`);
+  const [codeInput, setCodeInput] = useState("");
   const [tokens, setTokens] = useState<any[]>([]);
-  const [ast, setAst] = useState<any>(null);
-  const [semanticResults, setSemanticResults] = useState<any>(null);
+  const [ast, setAST] = useState<any>(null);
+  const [semanticAnalysis, setSemanticAnalysis] = useState<any>(null);
+  const [intermediateCode, setIntermediateCode] = useState<string>("");
+  const [optimizedCode, setOptimizedCode] = useState<string>("");
+  const [assemblyCode, setAssemblyCode] = useState<string>("");
   const [activeTab, setActiveTab] = useState("tokens");
 
   const handleTokenize = () => {
@@ -577,7 +577,7 @@ const Index = () => {
       const newTokens = tokenize(codeInput);
       setTokens(newTokens);
       const newAst = parse(newTokens);
-      setAst(newAst);
+      setAST(newAst);
       setActiveTab("ast");
       toast({
         title: "Parsing Successful",
@@ -598,11 +598,11 @@ const Index = () => {
       const newTokens = tokenize(codeInput);
       setTokens(newTokens);
       const newAst = parse(newTokens);
-      setAst(newAst);
+      setAST(newAst);
       
       const semanticAnalyzer = new SemanticAnalyzer();
       const results = semanticAnalyzer.analyze(newAst);
-      setSemanticResults(results);
+      setSemanticAnalysis(results);
       setActiveTab("semantic");
       
       const errorCount = results.errors.length;
@@ -628,96 +628,296 @@ const Index = () => {
     }
   };
 
+  const handleIntermediateCodeGeneration = () => {
+    if (!ast) {
+      toast({
+        title: "Error",
+        description: "Please parse the code first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const semanticAnalyzer = new SemanticAnalyzer();
+      const intermediateGenerator = new IntermediateCodeGenerator(semanticAnalyzer);
+      const functions = intermediateGenerator.generate(ast);
+      setIntermediateCode(formatTAC(functions));
+      setActiveTab("intermediate");
+      toast({
+        title: "Success",
+        description: "Intermediate code generated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate intermediate code: " + error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCodeOptimization = () => {
+    if (!intermediateCode) {
+      toast({
+        title: "Error",
+        description: "Please generate intermediate code first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const semanticAnalyzer = new SemanticAnalyzer();
+      const intermediateGenerator = new IntermediateCodeGenerator(semanticAnalyzer);
+      const functions = intermediateGenerator.generate(ast);
+      const optimizer = new CodeOptimizer(functions);
+      const optimizedFunctions = optimizer.optimize();
+      setOptimizedCode(formatOptimizedCode(optimizedFunctions));
+      setActiveTab("optimized");
+      toast({
+        title: "Success",
+        description: "Code optimized successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to optimize code: " + error,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCodeGeneration = () => {
+    if (!optimizedCode) {
+      toast({
+        title: "Error",
+        description: "Please optimize the code first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const semanticAnalyzer = new SemanticAnalyzer();
+      const intermediateGenerator = new IntermediateCodeGenerator(semanticAnalyzer);
+      const functions = intermediateGenerator.generate(ast);
+      const optimizer = new CodeOptimizer(functions);
+      const optimizedFunctions = optimizer.optimize();
+      const generator = new CodeGenerator(optimizedFunctions);
+      const assembly = generator.generate();
+      setAssemblyCode(formatAssembly(assembly));
+      setActiveTab("assembly");
+      toast({
+        title: "Success",
+        description: "Assembly code generated successfully",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to generate assembly code: " + error,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
-      <header className="text-center mb-8 bg-slate-800 text-cyan-400 p-6 rounded-lg shadow-lg">
-        <h1 className="text-3xl font-bold">C Compiler Visualizer</h1>
-        <p className="text-orange-400 mt-2">Explore the compilation process step by step</p>
+      <header className="text-center mb-8 bg-gradient-to-r from-slate-800 to-slate-900 text-white p-8 rounded-lg shadow-xl">
+        <h1 className="text-4xl font-bold mb-4">C Compiler Visualizer</h1>
+        <p className="text-cyan-400 text-lg">Explore the compilation process step by step</p>
       </header>
 
       <div className="grid grid-cols-1 gap-8">
         {/* Code Input Section */}
-        <Card className="p-6 shadow-lg">
-          <h2 className="text-xl font-bold mb-4 text-red-600">Your C Code</h2>
+        <Card className="p-6 shadow-lg bg-white dark:bg-slate-800">
+          <h2 className="text-2xl font-bold mb-4 text-cyan-600 dark:text-cyan-400">Your C Code</h2>
           <textarea
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value)}
-            className="w-full h-48 p-4 font-mono text-sm bg-gray-100 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            className="w-full h-48 p-4 font-mono text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-md focus:outline-none focus:ring-2 focus:ring-cyan-500 dark:focus:ring-cyan-400"
             spellCheck="false"
+            placeholder="Enter your C code here..."
           />
-          <div className="flex justify-center gap-4 mt-4">
-            <Button onClick={handleTokenize} className="bg-green-500 hover:bg-green-600">
+          <div className="flex flex-wrap justify-center gap-4 mt-4">
+            <Button 
+              onClick={handleTokenize} 
+              className="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
               Tokenize
             </Button>
-            <Button onClick={handleParse} className="bg-blue-500 hover:bg-blue-600">
+            <Button 
+              onClick={handleParse} 
+              className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
               Parse
             </Button>
-            <Button onClick={handleSemanticAnalysis} className="bg-purple-500 hover:bg-purple-600">
+            <Button 
+              onClick={handleSemanticAnalysis} 
+              className="bg-purple-500 hover:bg-purple-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
               Analyze Semantics
+            </Button>
+            <Button 
+              onClick={handleIntermediateCodeGeneration} 
+              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Generate IR
+            </Button>
+            <Button 
+              onClick={handleCodeOptimization} 
+              className="bg-pink-500 hover:bg-pink-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Optimize
+            </Button>
+            <Button 
+              onClick={handleCodeGeneration} 
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-md transition-colors"
+            >
+              Generate Assembly
             </Button>
           </div>
         </Card>
 
         {/* Output Tabs */}
-        <Card className="p-6 shadow-lg">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 mb-4">
-              <TabsTrigger value="tokens">Tokens</TabsTrigger>
-              <TabsTrigger value="ast">Abstract Syntax Tree</TabsTrigger>
-              <TabsTrigger value="semantic">Semantic Analysis</TabsTrigger>
+        <Card className="p-6 shadow-lg bg-white dark:bg-slate-800">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid grid-cols-6 gap-2 mb-4">
+              <TabsTrigger value="tokens" className="data-[state=active]:bg-cyan-500 data-[state=active]:text-white">
+                Tokens
+              </TabsTrigger>
+              <TabsTrigger value="ast" className="data-[state=active]:bg-blue-500 data-[state=active]:text-white">
+                AST
+              </TabsTrigger>
+              <TabsTrigger value="semantic" className="data-[state=active]:bg-purple-500 data-[state=active]:text-white">
+                Semantic
+              </TabsTrigger>
+              <TabsTrigger value="intermediate" className="data-[state=active]:bg-orange-500 data-[state=active]:text-white">
+                IR
+              </TabsTrigger>
+              <TabsTrigger value="optimized" className="data-[state=active]:bg-pink-500 data-[state=active]:text-white">
+                Optimized
+              </TabsTrigger>
+              <TabsTrigger value="assembly" className="data-[state=active]:bg-red-500 data-[state=active]:text-white">
+                Assembly
+              </TabsTrigger>
             </TabsList>
 
-            {/* Token Output */}
-            <TabsContent value="tokens" className="border rounded-md p-4">
-              <h2 className="text-xl font-bold mb-4 text-cyan-600">Lexical Analysis</h2>
-              {tokens.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="border px-4 py-2 text-left">Token Type</th>
-                        <th className="border px-4 py-2 text-left">Lexeme</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {tokens.map((token, index) => (
-                        <tr key={index} className="hover:bg-gray-50">
-                          <td className="border px-4 py-2 font-mono text-sm">{token.type}</td>
-                          <td className="border px-4 py-2 font-mono text-sm">{token.value}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="text-gray-500 italic">Click "Tokenize" to generate tokens</p>
-              )}
+            <TabsContent value="tokens" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                <pre className="text-sm font-mono overflow-x-auto">
+                  {tokens.map((token, index) => (
+                    <div key={index} className="mb-1">
+                      <span className="text-blue-600 dark:text-blue-400">{token.type}</span>
+                      <span className="mx-2">:</span>
+                      <span className="text-green-600 dark:text-green-400">{token.value}</span>
+                    </div>
+                  ))}
+                </pre>
+              </div>
             </TabsContent>
 
-            {/* AST Output */}
-            <TabsContent value="ast" className="border rounded-md p-4">
-              <h2 className="text-xl font-bold mb-4 text-cyan-600">Syntax Analysis</h2>
-              {ast ? (
-                <div 
-                  className="bg-white p-4 border rounded-md overflow-auto max-h-[500px]"
-                  dangerouslySetInnerHTML={{ __html: renderAST(ast) }}
-                />
-              ) : (
-                <p className="text-gray-500 italic">Click "Parse" to generate the Abstract Syntax Tree</p>
-              )}
+            <TabsContent value="ast" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                <pre className="text-sm font-mono overflow-x-auto">
+                  {JSON.stringify(ast, null, 2)}
+                </pre>
+              </div>
             </TabsContent>
 
-            {/* Semantic Analysis Output */}
-            <TabsContent value="semantic" className="border rounded-md p-4">
-              <h2 className="text-xl font-bold mb-4 text-cyan-600">Semantic Analysis</h2>
-              {semanticResults ? (
-                <div 
-                  className="bg-white p-4 border rounded-md overflow-auto max-h-[500px]"
-                  dangerouslySetInnerHTML={{ __html: renderSemanticAnalysis(semanticResults) }}
-                />
-              ) : (
-                <p className="text-gray-500 italic">Click "Analyze Semantics" to perform semantic analysis</p>
-              )}
+            <TabsContent value="semantic" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                {semanticAnalysis && (
+                  <div className="space-y-4">
+                    <div className="semantic-section">
+                      <h3 className="text-lg font-bold mb-2 text-purple-600 dark:text-purple-400">Symbol Table</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Type</th>
+                              <th>Scope</th>
+                              <th>Initialized</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(semanticAnalysis.symbolTable).map(([scope, symbols]: [string, any]) =>
+                              symbols.map((symbol: any, index: number) => (
+                                <tr key={`${scope}-${index}`}>
+                                  <td>{symbol.name}</td>
+                                  <td>{symbol.type}</td>
+                                  <td>{symbol.scope}</td>
+                                  <td>{symbol.isInitialized ? "Yes" : "No"}</td>
+                                </tr>
+                              ))
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <div className="semantic-section">
+                      <h3 className="text-lg font-bold mb-2 text-purple-600 dark:text-purple-400">Function Table</h3>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full">
+                          <thead>
+                            <tr>
+                              <th>Name</th>
+                              <th>Return Type</th>
+                              <th>Parameters</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {Object.entries(semanticAnalysis.functionTable).map(([name, func]: [string, any]) => (
+                              <tr key={name}>
+                                <td>{func.name}</td>
+                                <td>{func.returnType}</td>
+                                <td>{func.parameters.map((p: any) => `${p.name}: ${p.type}`).join(", ")}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {semanticAnalysis.errors.length > 0 && (
+                      <div className="semantic-section">
+                        <h3 className="text-lg font-bold mb-2 text-red-600 dark:text-red-400">Errors</h3>
+                        <ul className="error-list">
+                          {semanticAnalysis.errors.map((error: any, index: number) => (
+                            <li key={index} className="error-item">{error.message}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="intermediate" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+                  {intermediateCode || "No intermediate code generated yet"}
+                </pre>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="optimized" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+                  {optimizedCode || "No optimized code generated yet"}
+                </pre>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="assembly" className="mt-0">
+              <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-md">
+                <pre className="text-sm font-mono overflow-x-auto whitespace-pre-wrap">
+                  {assemblyCode || "No assembly code generated yet"}
+                </pre>
+              </div>
             </TabsContent>
           </Tabs>
         </Card>
