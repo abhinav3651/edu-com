@@ -924,7 +924,7 @@ const Index = () => {
       </div>
 
       <footer className="text-center mt-8 p-4 bg-slate-800 rounded-lg shadow-lg">
-        <p className="text-orange-400">By Dhruv Aggarwal, Aarchi Sardana, Vandana Uniyal and Manas Bisht</p>
+        <p className="text-orange-400">By Ayush kalakoti,Abhinav bankoti,Yash Bindal and Amritanshu Bisht</p>
       </footer>
     </div>
   );
